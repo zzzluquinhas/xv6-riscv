@@ -503,3 +503,18 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_getcnt(void)
+{
+  int syscallID;
+  argint(0, &syscallID);
+
+  struct proc *p = myproc();
+  
+  if(syscallID < 1 || syscallID > NELEM(p->syscall_count))
+	return -1;
+
+  int cnt = p->syscall_count[syscallID-1];
+  return cnt;
+}
