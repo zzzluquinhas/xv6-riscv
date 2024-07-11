@@ -43,6 +43,9 @@ proc_mapstacks(pagetable_t kpgtbl)
   }
 }
 
+int total_tickets = 0;
+struct spinlock ticket_lock;
+
 // initialize the proc table.
 void
 procinit(void)
@@ -51,11 +54,19 @@ procinit(void)
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
+  initlock(&ticket_lock, "ticket_lock");
+
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
+
+      // Inicializa tickets para cada processo
+      p->tickets = 1;  // Número default de tickets
   }
+
+  // Define o número total inicial de tickets
+  total_tickets = NPROC;  // Assume que cada processo receba 1 ticket inicialmente
 }
 
 // Must be called with interrupts disabled,
@@ -327,6 +338,12 @@ fork(void)
   np->state = RUNNABLE;
   release(&np->lock);
 
+  // Atualiza contador de tickets
+  acquire(&tickslock);
+  np->tickets = p->tickets;
+  total_tickets += np->tickets;
+  release(&tickslock);
+
   return pid;
 }
 
@@ -379,6 +396,10 @@ exit(int status)
   wakeup(p->parent);
   
   acquire(&p->lock);
+
+  acquire(&tickslock);
+  total_tickets -= p->tickets; // Recupera os tickets do processo que está saindo
+  release(&tickslock);
 
   p->xstate = status;
   p->state = ZOMBIE;
@@ -456,25 +477,35 @@ scheduler(void)
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+    
+    // Loop over process table looking for process to run.
+    acquire(&tickslock);
+    int total = total_tickets;
+    if(total > 0){
+      int winning_ticket = rand() % total;
+      int current_ticket = 0;
+      for(p = proc; p < &proc[NPROC]; p++) {
+        acquire(&p->lock);
+        if(p->state == RUNNABLE) {
+          current_ticket += p->tickets;
+          if(current_ticket > winning_ticket){
+            // Switch to chosen process.
+            c->proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
+            swtch(&c->context, &p->context);
+            switchkvm();
+            c->proc = 0;
+            break;
+          }
+        }
+        release(&p->lock);
       }
-      release(&p->lock);
     }
+  release(&tickslock);
   }
 }
+
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
