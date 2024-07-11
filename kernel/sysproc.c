@@ -90,6 +90,18 @@ sys_uptime(void)
   return xticks;
 }
 
+//uint64
+//sys_settickets(void)
+//{
+//  int n;
+//  argint(0, &n);
+	
+//  if(n < 1)
+//	return -1;
+//  myproc()->tickets = n;
+//  return 0;
+//}
+
 uint64
 sys_settickets(void)
 {
@@ -98,6 +110,12 @@ sys_settickets(void)
 	
   if(n < 1)
 	return -1;
-  myproc()->tickets = n;
+  
+  struct proc *p = myproc();
+  acquire(&tickslock);
+  p->tickets = n;
+  release(&tickslock);
+
   return 0;
 }
+
