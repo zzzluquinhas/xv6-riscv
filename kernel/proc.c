@@ -12,8 +12,14 @@ struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
 
+// variável global para manter registro
+// da quantidade total de tickets
 int total_tickets = 0;
 struct pstat pstat;
+
+// mutex para garantir que duas funções não alterem
+// a variável global total_ticktes simultaneamente
+struct spinlock ticket_lock;
 
 struct proc *initproc;
 
@@ -56,6 +62,7 @@ procinit(void)
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
+  initlock(&ticket_lock, "total_tickets");
 
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
@@ -136,7 +143,9 @@ found:
   pstat.tickets[p - proc] = 1;
   pstat.pid[p - proc] = p->pid;
   pstat.ticks[p - proc] = 0;
+  acquire(&ticket_lock);
   total_tickets++;
+  release(&ticket_lock);
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -170,7 +179,9 @@ freeproc(struct proc *p)
 {
   // atualiza o status do processo, liberando o espaço para um novo processo
   pstat.inuse[p - proc] = UNUSED;
+  acquire(&ticket_lock);
   total_tickets -= pstat.tickets[p - proc];
+  release(&ticket_lock);
 
   if(p->trapframe)
     kfree((void*)p->trapframe);
@@ -332,7 +343,9 @@ fork(void)
   int num_tickets_antigo = pstat.tickets[np - proc];
   // o processo filho tem o mesmo número de tickets que o pai
   pstat.tickets[np - proc] = pstat.tickets[p - proc];
+  acquire(&ticket_lock);
   total_tickets += (pstat.tickets[np - proc] - num_tickets_antigo);
+  release(&ticket_lock);
 
   release(&np->lock);
 
@@ -589,7 +602,9 @@ sleep(void *chan, struct spinlock *lk)
   p->state = SLEEPING;
 
   // desconta os tickets do processo ao dormir
+  acquire(&ticket_lock);
   total_tickets -= pstat.tickets[p - proc];
+  release(&ticket_lock);
 
   sched();
 
@@ -614,7 +629,9 @@ wakeup(void *chan)
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
 		// adiciona os tickets do processo ao acordar
+  		acquire(&ticket_lock);
 		total_tickets += pstat.tickets[p - proc];
+		release(&ticket_lock);
       }
       release(&p->lock);
     }
