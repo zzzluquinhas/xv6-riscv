@@ -103,6 +103,7 @@ extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
 extern uint64 sys_settickets(void);
 extern uint64 sys_getpinfo(void);
+extern uint64 sys_testeloteria(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.

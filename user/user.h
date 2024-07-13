@@ -26,6 +26,7 @@ int uptime(void);
 int getcnt(int);
 int settickets(int);
 int getpinfo(struct pstat*);
+int testeloteria(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

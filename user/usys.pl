@@ -38,3 +38,5 @@ entry("sleep");
 entry("uptime");
 entry("settickets");
 entry("getpinfo");
+# códigos de testagem
+entry("testeloteria");

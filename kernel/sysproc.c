@@ -95,7 +95,6 @@ sys_uptime(void)
   return xticks;
 }
 
-
 uint64 sys_settickets(void)
 {
   int tickets;
