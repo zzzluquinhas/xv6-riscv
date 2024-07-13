@@ -48,9 +48,6 @@ proc_mapstacks(pagetable_t kpgtbl)
   }
 }
 
-int total_tickets = 0;
-struct spinlock ticket_lock;
-
 // initialize the proc table.
 void
 procinit(void)
@@ -59,19 +56,12 @@ procinit(void)
   
   initlock(&pid_lock, "nextpid");
   initlock(&wait_lock, "wait_lock");
-  initlock(&ticket_lock, "ticket_lock");
 
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
-
-      // Inicializa tickets para cada processo
-      p->tickets = 1;  // Número default de tickets
   }
-
-  // Define o número total inicial de tickets
-  total_tickets = NPROC;  // Assume que cada processo receba 1 ticket inicialmente
 }
 
 // Must be called with interrupts disabled,
@@ -352,12 +342,6 @@ fork(void)
   np->state = RUNNABLE;
   release(&np->lock);
 
-  // Atualiza contador de tickets
-  acquire(&tickslock);
-  np->tickets = p->tickets;
-  total_tickets += np->tickets;
-  release(&tickslock);
-
   return pid;
 }
 
@@ -411,9 +395,7 @@ exit(int status)
   
   acquire(&p->lock);
 
-  acquire(&tickslock);
-  total_tickets -= p->tickets; // Recupera os tickets do processo que está saindo
-  release(&tickslock);
+  total_tickets -= pstat.tickets[p - proc];
 
   p->xstate = status;
   p->state = ZOMBIE;
