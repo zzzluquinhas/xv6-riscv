@@ -168,8 +168,8 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  // atualiza o status do processo, liberando o espaço para um novo processo
   pstat.inuse[p - proc] = UNUSED;
-  pstat.ticks[p - proc] = 0;
   total_tickets -= pstat.tickets[p - proc];
 
   if(p->trapframe)
@@ -329,8 +329,10 @@ fork(void)
 
   pid = np->pid;
 
+  int num_tickets_antigo = pstat.tickets[np - proc];
+  // o processo filho tem o mesmo número de tickets que o pai
   pstat.tickets[np - proc] = pstat.tickets[p - proc];
-  total_tickets += (pstat.tickets[np - proc] - 1);
+  total_tickets += (pstat.tickets[np - proc] - num_tickets_antigo);
 
   release(&np->lock);
 
@@ -394,8 +396,6 @@ exit(int status)
   wakeup(p->parent);
   
   acquire(&p->lock);
-
-  total_tickets -= pstat.tickets[p - proc];
 
   p->xstate = status;
   p->state = ZOMBIE;
@@ -480,9 +480,15 @@ scheduler(void)
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-		ticket -= pstat.tickets[p - proc];
+		ticket -= pstat.tickets[p - proc]; // decrementa o número de tickets do processo
+
+		// se o número de tickets for menor ou igual a zero
+		// significa que o processo atual é o escolhido.
+		// isso é equivalente a somar até chegar no número sorteado
 		if (ticket <= 0) {
+			// processo escolhido -> ganha mais um tick
 			pstat.ticks[p - proc]++;
+			// sorteia um novo valor de ticket
 			ticket = random_at_most(total_tickets, 605) + 1;
 
 			// Switch to chosen process.  It is the process's job
@@ -501,7 +507,6 @@ scheduler(void)
     }
   }
 }
-
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -583,6 +588,9 @@ sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
+  // desconta os tickets do processo ao dormir
+  total_tickets -= pstat.tickets[p - proc];
+
   sched();
 
   // Tidy up.
@@ -605,6 +613,8 @@ wakeup(void *chan)
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
+		// adiciona os tickets do processo ao acordar
+		total_tickets += pstat.tickets[p - proc];
       }
       release(&p->lock);
     }

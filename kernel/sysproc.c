@@ -95,32 +95,32 @@ sys_uptime(void)
   return xticks;
 }
 
-uint64 sys_settickets(void)
-{
-  int tickets;
-  argint(0, &tickets);
-  if (tickets < 1)
-	return -1;
+uint64 sys_settickets(void) {
+	int tickets;
+	argint(0, &tickets);
+	if (tickets < 1)
+		return -1;
 
-  struct proc *p = myproc();
-  total_tickets += (tickets - pstat.tickets[p - proc]);
-  pstat.tickets[p - proc] = tickets;
-  return 0;
+	struct proc *p = myproc();
+	int diff_tickets = tickets - pstat.tickets[p - proc];
+	total_tickets += diff_tickets; // adiciona a diferença em total_tickets
+	pstat.tickets[p - proc] = tickets; // atualiza o número de tickets do processo
+	return 0;
 }
 
-uint sys_getpinfo(void)
-{
-  struct pstat *p;
-  argaddr(0, (uint64*)&p);
-  if (p == 0)
-	return -1;
-  if (copyout(myproc()->pagetable, (uint64)p, (char*)&pstat, sizeof(pstat)) < 0)
-	return -1;
-  return 0;	
+uint sys_getpinfo(void) {
+	struct pstat *p;
+	argaddr(0, (uint64*)&p);
+	if (p == 0)
+		return -1;
+
+	// copia a estrutura pstat para o espaço de usuário
+	if (copyout(myproc()->pagetable, (uint64)p, (char*)&pstat, sizeof(pstat)) < 0)
+		return -1;
+	return 0;	
 }
 
-uint sys_yield(void)
-{
-  yield();
-  return 0; // not reached(?)
+uint sys_yield(void) {
+	yield();
+	return 0; // not reached
 }
