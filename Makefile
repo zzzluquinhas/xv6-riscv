@@ -135,6 +135,7 @@ UPROGS=\
 	$U/_settickets\
 	$U/_getpinfo\
 	$U/_testeloteria\
+	$U/_yield\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

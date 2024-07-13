@@ -40,3 +40,4 @@ entry("settickets");
 entry("getpinfo");
 # códigos de testagem
 entry("testeloteria");
+entry("yield");

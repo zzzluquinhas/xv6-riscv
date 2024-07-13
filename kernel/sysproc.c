@@ -118,3 +118,9 @@ uint sys_getpinfo(void)
 	return -1;
   return 0;	
 }
+
+uint sys_yield(void)
+{
+  yield();
+  return 0; // not reached(?)
+}
