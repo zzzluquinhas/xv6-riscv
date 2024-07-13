@@ -95,32 +95,27 @@ sys_uptime(void)
   return xticks;
 }
 
-//uint64
-//sys_settickets(void)
-//{
-//  int n;
-//  argint(0, &n);
-	
-//  if(n < 1)
-//	return -1;
-//  myproc()->tickets = n;
-//  return 0;
-//}
 
-uint64
-sys_settickets(void)
+uint64 sys_settickets(void)
 {
-  int n;
-  argint(0, &n);
-	
-  if(n < 1)
+  int tickets;
+  argint(0, &tickets);
+  if (tickets < 1)
 	return -1;
-  
-  struct proc *p = myproc();
-  acquire(&tickslock);
-  p->tickets = n;
-  release(&tickslock);
 
+  struct proc *p = myproc();
+  total_tickets += (tickets - pstat.tickets[p - proc]);
+  pstat.tickets[p - proc] = tickets;
   return 0;
 }
 
+uint sys_getpinfo(void)
+{
+  struct pstat *p;
+  argaddr(0, (uint64*)&p);
+  if (p == 0)
+	return -1;
+  if (copyout(myproc()->pagetable, (uint64)p, (char*)&pstat, sizeof(pstat)) < 0)
+	return -1;
+  return 0;	
+}
