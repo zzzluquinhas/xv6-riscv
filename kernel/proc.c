@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "pstat.h"
+#include "rand.h"
 
 struct cpu cpus[NCPU];
 
@@ -494,32 +495,31 @@ scheduler(void)
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-    
-    // Loop over process table looking for process to run.
-    acquire(&tickslock);
-    int total = total_tickets;
-    if(total > 0){
-      int winning_ticket = rand() % total;
-      int current_ticket = 0;
-      for(p = proc; p < &proc[NPROC]; p++) {
-        acquire(&p->lock);
-        if(p->state == RUNNABLE) {
-          current_ticket += p->tickets;
-          if(current_ticket > winning_ticket){
-            // Switch to chosen process.
-            c->proc = p;
-            switchuvm(p);
-            p->state = RUNNING;
-            swtch(&c->context, &p->context);
-            switchkvm();
-            c->proc = 0;
-            break;
-          }
-        }
-        release(&p->lock);
+
+	// Sorteia um número entre 1 e o total de tickets.
+	int ticket = random_at_most(total_tickets, 605) + 1;
+
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {
+		ticket -= pstat.tickets[p - proc];
+		if (ticket <= 0) {
+			pstat.ticks[p - proc]++;
+
+			// Switch to chosen process.  It is the process's job
+			// to release its lock and then reacquire it
+			// before jumping back to us.
+			p->state = RUNNING;
+			c->proc = p;
+			swtch(&c->context, &p->context);
+
+			// Process is done running for now.
+			// It should have changed its p->state before coming back.
+			c->proc = 0;
+		}
       }
+      release(&p->lock);
     }
-  release(&tickslock);
   }
 }
 
