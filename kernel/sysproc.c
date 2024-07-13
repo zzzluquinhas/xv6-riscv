@@ -5,6 +5,11 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "pstat.h"
+
+extern int total_tickets;
+extern struct pstat pstat;
+extern struct proc proc[NPROC];
 
 uint64
 sys_exit(void)

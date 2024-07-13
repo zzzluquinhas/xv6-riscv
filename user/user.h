@@ -1,3 +1,4 @@
+#include "kernel/pstat.h"
 struct stat;
 
 // system calls

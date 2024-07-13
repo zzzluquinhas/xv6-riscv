@@ -5,10 +5,14 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "pstat.h"
 
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
+
+int total_tickets = 0;
+struct pstat pstat;
 
 struct proc *initproc;
 
@@ -141,6 +145,12 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  pstat.inuse[p - proc] = USED;
+  pstat.tickets[p - proc] = 1;
+  pstat.pid[p - proc] = p->pid;
+  pstat.ticks[p - proc] = 0;
+  total_tickets++;
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -171,6 +181,10 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  pstat.inuse[p - proc] = UNUSED;
+  pstat.ticks[p - proc] = 0;
+  total_tickets -= pstat.tickets[p - proc];
+
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
@@ -327,6 +341,9 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+
+  pstat.tickets[np - proc] = pstat.tickets[p - proc];
+  total_tickets += (pstat.tickets[np - proc] - 1);
 
   release(&np->lock);
 
