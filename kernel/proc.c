@@ -468,21 +468,22 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
+
+  // Sorteia um número entre 1 e o total de tickets.
+  int ticket = random_at_most(total_tickets, 605) + 1;
+
   c->proc = 0;
   for(;;){
+
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
-	// Sorteia um número entre 1 e o total de tickets.
-	int ticket = random_at_most(total_tickets, 605) + 1;
-
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
 		ticket -= pstat.tickets[p - proc];
 		if (ticket <= 0) {
 			pstat.ticks[p - proc]++;
+			ticket = random_at_most(total_tickets, 605) + 1;
 
 			// Switch to chosen process.  It is the process's job
 			// to release its lock and then reacquire it

@@ -90,9 +90,7 @@ int main(int argc, char *argv[])
     wait_for_ticket_counts(num_children, active_pids, tickets_for);
     struct pstat before, after;
     for(int i = 0; i < NPROC; i++) {
-		before.pid[i] = -1;
 		before.inuse[i] = 0;
-		after.pid[i] = -1;
 		after.inuse[i] = 0;
 	}
     getpinfo(&before);
@@ -104,15 +102,14 @@ int main(int argc, char *argv[])
     for (int i = 0; i < num_children; ++i) {
         wait(0);
     }
-	int tamBefore = sizeof(before.pid)/sizeof(before.pid[0]);
-	int tamAfter = sizeof(after.pid)/sizeof(after.pid[0]);
-    if (tamBefore >= NPROC || tamAfter >= NPROC) {
-        fprintf(2, "getpinfo's num_processes is greater than NPROC before parent slept\n");
-        return 1;
-    }
-    if (tamBefore < 0 || tamAfter < 0) {
+	int numBefore = 0, numAfter = 0;
+	for (int i = 0; i < NPROC; i++) {
+		if (before.inuse[i]) numBefore++;
+		if (after.inuse[i]) numAfter++;
+	}
+    if (numBefore == 0 || numAfter == 0) {
         fprintf(2, "getpinfo's num_processes is negative -- not changed by syscall?\n");
-        return 1;
+        exit(1);
     }
     fprintf(1, "PID\tTICKETS\tTIMES SCHEDULED\n");
     for (int i = 0; i < num_children; ++i) {
