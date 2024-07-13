@@ -135,10 +135,6 @@ allocproc(void)
       release(&p->lock);
     }
   }
-  
-  // Inicializa syscall_count em zero para todas as syscalls.
-  for (int i = 0; i < NELEM(p->syscall_count); i++)
-    p->syscall_count[i] = 0;
 
   return 0;
 

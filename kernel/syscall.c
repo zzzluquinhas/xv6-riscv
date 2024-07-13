@@ -101,7 +101,6 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
-extern uint64 sys_getcnt(void);
 extern uint64 sys_settickets(void);
 extern uint64 sys_getpinfo(void);
 
@@ -129,7 +128,6 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
-[SYS_getcnt]  sys_getcnt,
 [SYS_settickets] sys_settickets,
 [SYS_getpinfo] sys_getpinfo,
 };
@@ -144,9 +142,6 @@ syscall(void)
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
-
-	// Incrementa o número de vezes que a syscall foi chamada
-	p->syscall_count[num-1]++;
 
     p->trapframe->a0 = syscalls[num]();
   } else {
