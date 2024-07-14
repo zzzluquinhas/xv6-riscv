@@ -740,3 +740,18 @@ procdump(void)
     printf("\n");
   }
 }
+
+int settickets(int tickets) {
+  struct proc *p = myproc();
+  if (tickets < 1) {
+	return -1;
+  }
+
+  acquire(&ticket_lock);
+  int diff_tickets = tickets - pstat.tickets[p - proc];
+  total_tickets += diff_tickets;
+  pstat.tickets[p - proc] = tickets;
+  release(&ticket_lock);
+
+  return 0;
+}

@@ -101,10 +101,7 @@ uint64 sys_settickets(void) {
 	if (tickets < 1)
 		return -1;
 
-	struct proc *p = myproc();
-	int diff_tickets = tickets - pstat.tickets[p - proc];
-	total_tickets += diff_tickets; // adiciona a diferença em total_tickets
-	pstat.tickets[p - proc] = tickets; // atualiza o número de tickets do processo
+	settickets(tickets);
 	return 0;
 }
 
