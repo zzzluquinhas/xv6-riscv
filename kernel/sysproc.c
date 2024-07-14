@@ -105,7 +105,7 @@ uint64 sys_settickets(void) {
 	return 0;
 }
 
-uint sys_getpinfo(void) {
+uint64 sys_getpinfo(void) {
 	struct pstat *p;
 	argaddr(0, (uint64*)&p);
 	if (p == 0)
@@ -117,7 +117,7 @@ uint sys_getpinfo(void) {
 	return 0;	
 }
 
-uint sys_yield(void) {
+uint64 sys_yield(void) {
 	yield();
 	return 0; // not reached
 }

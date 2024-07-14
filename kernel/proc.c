@@ -144,7 +144,7 @@ found:
   pstat.pid[p - proc] = p->pid;
   pstat.ticks[p - proc] = 0;
   acquire(&ticket_lock);
-  total_tickets++;
+  total_tickets += pstat.tickets[p - proc];
   release(&ticket_lock);
 
   // Allocate a trapframe page.
