@@ -3,7 +3,7 @@
 #include "kernel/pstat.h"
 #include "user/user.h"
 
-#undef USE_YIELD
+#define USE_YIELD
 #define MAX_CHILDREN 32
 #define LARGE_TICKET_COUNT 100000
 #define MAX_YIELDS_FOR_SETUP 100
@@ -65,25 +65,21 @@ void wait_for_ticket_counts(int num_children, int *pids, int *tickets) {
 
 int main(int argc, char *argv[])
 {
-    if (argc < 3) {
-        fprintf(2, "usage: %s seconds tickets1 tickets2 ... ticketsN\n"
+    if (argc != 3) {
+        fprintf(2, "usage: %s seconds tickets\n"
                   "       seconds is the number of time units to run for\n"
-                  "       ticketsX is the number of tickets to give to subprocess N\n",
+                  "       tickets is the number of tickets to give to subprocesses in ratio 1:2:3\n",
                   argv[0]);
         exit(0);
     }
     int tickets_for[MAX_CHILDREN];
     int active_pids[MAX_CHILDREN];
     int num_seconds = atoi(argv[1]);
-    int num_children = argc - 2;
-    if (num_children > MAX_CHILDREN) {
-        fprintf(2, "only up to %d supported\n", MAX_CHILDREN);
-        exit(0);
-    }
+    int num_children = 3;
     /* give us a lot of ticket so we don't get starved */
     settickets(LARGE_TICKET_COUNT);
     for (int i = 0; i < num_children; ++i) {
-        int tickets = atoi(argv[i + 2]);
+        int tickets = atoi(argv[2]) * (i+1);
         tickets_for[i] = tickets;
         active_pids[i] = spawn(tickets);
     }
@@ -108,10 +104,9 @@ int main(int argc, char *argv[])
 		if (after.inuse[i]) numAfter++;
 	}
     if (numBefore == 0 || numAfter == 0) {
-        fprintf(2, "getpinfo's num_processes is negative -- not changed by syscall?\n");
+        fprintf(2, "getpinfo doesn't have active processes -- not changed by syscall?\n");
         exit(1);
     }
-    fprintf(1, "PID\tTICKETS\tTIMES SCHEDULED\n");
     for (int i = 0; i < num_children; ++i) {
         int before_index = find_index_of_pid(before.pid, NPROC, active_pids[i]);
         int after_index = find_index_of_pid(after.pid, NPROC, active_pids[i]);
@@ -128,7 +123,7 @@ int main(int argc, char *argv[])
             if (after.tickets[after_index] != tickets_for[i]) {
                 fprintf(2, "child %d had wrong number of tickets in getprocessinfo after parent slept\n", i);
             }
-            fprintf(1, "%d\t%d\t%d\n", active_pids[i], tickets_for[i], after.ticks[after_index] - before.ticks[before_index]);
+            fprintf(1, "%d tickets: %d ticks\n", tickets_for[i], after.ticks[after_index] - before.ticks[before_index]);
         }
     }
     exit(0);
