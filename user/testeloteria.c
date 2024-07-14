@@ -3,8 +3,8 @@
 #include "kernel/pstat.h"
 #include "user/user.h"
 
-#define USE_YIELD
-#define MAX_CHILDREN 32
+#define NUM_CHILDREN 3
+#define NUM_SECONDS 60
 #define LARGE_TICKET_COUNT 100000
 #define MAX_YIELDS_FOR_SETUP 100
 
@@ -15,23 +15,11 @@ void yield_forever() {
     }
 }
 
-__attribute__((noreturn))
-void run_forever() {
-    while (1) {
-        __asm__("");
-    }
-}
-
 int spawn(int tickets) {
     int pid = fork();
     if (pid == 0) {
         settickets(tickets);
-        yield();
-#ifdef USE_YIELD
         yield_forever();
-#else
-        run_forever();
-#endif
     } else if (pid != -1) {
         return pid;
     } else {
@@ -65,37 +53,34 @@ void wait_for_ticket_counts(int num_children, int *pids, int *tickets) {
 
 int main(int argc, char *argv[])
 {
-    if (argc != 3) {
-        fprintf(2, "usage: %s seconds tickets\n"
-                  "       seconds is the number of time units to run for\n"
+    if (argc != 2) {
+        fprintf(2, "usage: %s tickets\n"
                   "       tickets is the number of tickets to give to subprocesses in ratio 1:2:3\n",
                   argv[0]);
         exit(0);
     }
-    int tickets_for[MAX_CHILDREN];
-    int active_pids[MAX_CHILDREN];
-    int num_seconds = atoi(argv[1]);
-    int num_children = 3;
+    int tickets_for[NUM_CHILDREN];
+    int active_pids[NUM_CHILDREN];
     /* give us a lot of ticket so we don't get starved */
     settickets(LARGE_TICKET_COUNT);
-    for (int i = 0; i < num_children; ++i) {
-        int tickets = atoi(argv[2]) * (i+1);
+    for (int i = 0; i < NUM_CHILDREN; ++i) {
+        int tickets = atoi(argv[1]) * (i+1);
         tickets_for[i] = tickets;
         active_pids[i] = spawn(tickets);
     }
-    wait_for_ticket_counts(num_children, active_pids, tickets_for);
+    wait_for_ticket_counts(NUM_CHILDREN, active_pids, tickets_for);
     struct pstat before, after;
     for(int i = 0; i < NPROC; i++) {
 		before.inuse[i] = 0;
 		after.inuse[i] = 0;
 	}
     getpinfo(&before);
-    sleep(num_seconds);
+    sleep(NUM_SECONDS);
     getpinfo(&after);
-    for (int i = 0; i < num_children; ++i) {
+    for (int i = 0; i < NUM_CHILDREN; ++i) {
         kill(active_pids[i]);
     }
-    for (int i = 0; i < num_children; ++i) {
+    for (int i = 0; i < NUM_CHILDREN; ++i) {
         wait(0);
     }
 	int numBefore = 0, numAfter = 0;
@@ -107,7 +92,7 @@ int main(int argc, char *argv[])
         fprintf(2, "getpinfo doesn't have active processes -- not changed by syscall?\n");
         exit(1);
     }
-    for (int i = 0; i < num_children; ++i) {
+    for (int i = 0; i < NUM_CHILDREN; ++i) {
         int before_index = find_index_of_pid(before.pid, NPROC, active_pids[i]);
         int after_index = find_index_of_pid(after.pid, NPROC, active_pids[i]);
         if (before_index == -1)
