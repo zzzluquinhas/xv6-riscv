@@ -7,10 +7,6 @@
 #include "proc.h"
 #include "pstat.h"
 
-extern int total_tickets;
-extern struct pstat pstat;
-extern struct proc proc[NPROC];
-
 uint64
 sys_exit(void)
 {
@@ -105,16 +101,17 @@ uint64 sys_settickets(void) {
 	return 0;
 }
 
-uint64 sys_getpinfo(void) {
+uint64 sys_getpinfo(void) {	
 	struct pstat *p;
 	argaddr(0, (uint64*)&p);
-	if (p == 0)
-		return -1;
+	
+	struct pstat pstat;
+	getpinfo(&pstat);
 
-	// copia a estrutura pstat para o espaço de usuário
-	if (copyout(myproc()->pagetable, (uint64)p, (char*)&pstat, sizeof(pstat)) < 0)
+	// copia a struct pstat para o espaço de usuário
+	if (copyout(myproc()->pagetable, (uint64)p, (char*)&pstat, sizeof(struct pstat)) < 0)
 		return -1;
-	return 0;	
+	return 0;
 }
 
 uint64 sys_yield(void) {

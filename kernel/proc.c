@@ -15,7 +15,6 @@ struct proc proc[NPROC];
 // variável global para manter registro
 // da quantidade total de tickets
 int total_tickets = 0;
-struct pstat pstat;
 
 // mutex para garantir que duas funções não alterem
 // a variável global total_ticktes simultaneamente
@@ -139,12 +138,10 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
-  pstat.inuse[p - proc] = USED;
-  pstat.tickets[p - proc] = 1;
-  pstat.pid[p - proc] = p->pid;
-  pstat.ticks[p - proc] = 0;
+  p->tickets = 1;
+  p->ticks = 0;
   acquire(&ticket_lock);
-  total_tickets += pstat.tickets[p - proc];
+  total_tickets += p->tickets;
   release(&ticket_lock);
 
   // Allocate a trapframe page.
@@ -177,10 +174,8 @@ found:
 static void
 freeproc(struct proc *p)
 {
-  // atualiza o status do processo, liberando o espaço para um novo processo
-  pstat.inuse[p - proc] = UNUSED;
   acquire(&ticket_lock);
-  total_tickets -= pstat.tickets[p - proc];
+  total_tickets -= p->tickets;
   release(&ticket_lock);
 
   if(p->trapframe)
@@ -340,11 +335,11 @@ fork(void)
 
   pid = np->pid;
 
-  int num_tickets_antigo = pstat.tickets[np - proc];
+  int num_tickets_antigo = np->tickets;
   // o processo filho tem o mesmo número de tickets que o pai
-  pstat.tickets[np - proc] = pstat.tickets[p - proc];
+  np->tickets = p->tickets;
   acquire(&ticket_lock);
-  total_tickets += (pstat.tickets[np - proc] - num_tickets_antigo);
+  total_tickets += (np->tickets - num_tickets_antigo);
   release(&ticket_lock);
 
   release(&np->lock);
@@ -493,14 +488,14 @@ scheduler(void)
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-		ticket -= pstat.tickets[p - proc]; // decrementa o número de tickets do processo
+		ticket -= p->tickets; // decrementa o número de tickets do processo
 
 		// se o número de tickets for menor ou igual a zero
 		// significa que o processo atual é o escolhido.
 		// isso é equivalente a somar até chegar no número sorteado
 		if (ticket <= 0) {
 			// processo escolhido -> ganha mais um tick
-			pstat.ticks[p - proc]++;
+			p->ticks++;
 			// sorteia um novo valor de ticket
 			ticket = random_at_most(total_tickets, 605) + 1;
 
@@ -603,7 +598,7 @@ sleep(void *chan, struct spinlock *lk)
 
   // desconta os tickets do processo ao dormir
   acquire(&ticket_lock);
-  total_tickets -= pstat.tickets[p - proc];
+  total_tickets -= p->tickets;
   release(&ticket_lock);
 
   sched();
@@ -630,7 +625,7 @@ wakeup(void *chan)
         p->state = RUNNABLE;
 		// adiciona os tickets do processo ao acordar
   		acquire(&ticket_lock);
-		total_tickets += pstat.tickets[p - proc];
+		total_tickets += p->tickets;
 		release(&ticket_lock);
       }
       release(&p->lock);
@@ -748,10 +743,37 @@ int settickets(int tickets) {
   }
 
   acquire(&ticket_lock);
-  int diff_tickets = tickets - pstat.tickets[p - proc];
-  total_tickets += diff_tickets;
-  pstat.tickets[p - proc] = tickets;
+  total_tickets += tickets - p->tickets;
   release(&ticket_lock);
+  
+  acquire(&p->lock);
+  p->tickets = tickets;
+  release(&p->lock);
+
+  return 0;
+}
+
+int getpinfo(struct pstat *ps) {
+  for (int i = 0; i < NPROC; i++) {
+	ps->inuse[i] = 0;
+	ps->tickets[i] = 0;
+	ps->pid[i] = 0;
+	ps->ticks[i] = 0;
+  }
+
+  int i = 0;
+  struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++) {
+	acquire(&p->lock);
+	if (p->state != UNUSED) {
+	  ps->inuse[i] = 1;
+	  ps->tickets[i] = p->tickets;
+	  ps->pid[i] = p->pid;
+	  ps->ticks[i] = p->ticks;
+	  i++;
+	}
+	release(&p->lock);
+  }
 
   return 0;
 }
