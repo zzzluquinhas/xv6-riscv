@@ -494,8 +494,8 @@ scheduler(void)
 		// significa que o processo atual é o escolhido.
 		// isso é equivalente a somar até chegar no número sorteado
 		if (ticket <= 0) {
-			// // processo escolhido -> ganha mais um tick
-			// p->ticks++;
+			// processo escolhido -> ganha mais um tick
+			p->ticks++;
 			// sorteia um novo valor de ticket
 			ticket = random_at_most(total_tickets, 605) + 1;
 
@@ -504,19 +504,7 @@ scheduler(void)
 			// before jumping back to us.
 			p->state = RUNNING;
 			c->proc = p;
-
-			acquire(&tickslock);
-			int t_inicio = ticks;
-			release(&tickslock);
-
 			swtch(&c->context, &p->context);
-			
-			acquire(&tickslock);
-			int t_fim = ticks;
-			release(&tickslock);
-
-			// calcula o tempo que o processo rodou
-			p->ticks += t_fim - t_inicio;
 
 			// Process is done running for now.
 			// It should have changed its p->state before coming back.
