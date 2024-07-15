@@ -478,7 +478,9 @@ scheduler(void)
   struct cpu *c = mycpu();
 
   // Sorteia um número entre 1 e o total de tickets.
+  acquire(&ticket_lock);
   int ticket = random_at_most(total_tickets, 605) + 1;
+  release(&ticket_lock);
 
   c->proc = 0;
   for(;;){
@@ -497,7 +499,9 @@ scheduler(void)
 			// processo escolhido -> ganha mais um tick
 			p->ticks++;
 			// sorteia um novo valor de ticket
+			acquire(&ticket_lock);
 			ticket = random_at_most(total_tickets, 605) + 1;
+			release(&ticket_lock);
 
 			// Switch to chosen process.  It is the process's job
 			// to release its lock and then reacquire it
