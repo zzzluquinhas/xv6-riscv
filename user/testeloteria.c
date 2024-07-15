@@ -4,7 +4,7 @@
 #include "user/user.h"
 
 #define NUM_CHILDREN 3
-#define NUM_SECONDS 60
+#define NUM_SECONDS 300
 #define LARGE_TICKET_COUNT 100000
 #define MAX_YIELDS_FOR_SETUP 100
 
@@ -19,6 +19,8 @@ int spawn(int tickets) {
     int pid = fork();
     if (pid == 0) {
         settickets(tickets);
+		// sempre que o processo é escolhido ele libera para o
+		// escalonador pois já foi contabilizada a chegada
         yield_forever();
     } else if (pid != -1) {
         return pid;
